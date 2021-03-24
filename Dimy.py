@@ -4,9 +4,10 @@ from socket import *
 import sys
 import threading
 import time
+from uuid import uuid4
 
 port = 37020
-broadcast_id_str = ""
+broadcast_id = ""
 
 print("[STARTING] UDP Broadcaster is starting...")
 
@@ -18,12 +19,13 @@ def udp_broadcaster():
     broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
     global port
-    global broadcast_id_str
+    global broadcast_id
 
     # ephID
-    id = os.urandom(16)
-    broadcast_id_str = str(binascii.hexlify(id), "utf-8")
-    print(f"Make new ID: {broadcast_id_str}")
+    # id = os.urandom(16)
+    broadcast_id = str(uuid4().int)[0:16]
+    # broadcast_id = str(binascii.hexlify(id), "utf-8")
+    print(f"Make new ID: {broadcast_id}")
 
     # timer
     start_time = time.time()
@@ -35,14 +37,15 @@ def udp_broadcaster():
 
         # broadcast id every 10 seconds
         if curr_timer > broadcast_timer:
-            print(f"Broadcast ID: {broadcast_id_str}")
-            broadcast_socket.sendto(id, ('192.168.4.255', port))
+            print(f"Broadcast ID: {broadcast_id}")
+            broadcast_socket.sendto(broadcast_id.encode('utf-8'), ('192.168.4.255', port))
             broadcast_timer += 10
         # create new id every minute
         elif curr_timer > id_timer:
-            id = os.urandom(16)
-            broadcast_id_str = str(binascii.hexlify(id), "utf-8")
-            print(f"Make new ID: {broadcast_id_str}")
+            # id = os.urandom(16)
+            broadcast_id = str(uuid4().int)[0:16]
+            # broadcast_id = str(binascii.hexlify(id), "utf-8")
+            print(f"Make new ID: {broadcast_id}")
             id_timer += 60
 
         curr_timer = time.time() - start_time
@@ -52,13 +55,13 @@ def udp_receiver():
     server_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
     global port
-    global broadcast_id_str
+    global broadcast_id
     server_socket.bind(("", port))
 
     while True:
         recv_id, recv_addr = server_socket.recvfrom(2048)
         recv_id = str(binascii.hexlify(recv_id), "utf-8")
-        if broadcast_id_str != recv_id:
+        if broadcast_id != recv_id:
             print("Received ID: ", recv_id)
 
 # thread for listening for beacons
