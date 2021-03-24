@@ -14,9 +14,8 @@ print("[STARTING] UDP Broadcaster is starting...")
 def udp_broadcaster():
 
     # Create socket
-    udp_broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-    udp_broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    udp_broadcast_socket.settimeout(0.2)
+    broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+    broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
     global port
     global broadcast_id_str
@@ -37,7 +36,7 @@ def udp_broadcaster():
         # broadcast id every 10 seconds
         if curr_timer > broadcast_timer:
             print(f"Broadcast ID: {broadcast_id_str}")
-            udp_broadcast_socket.sendto(id, ('<broadcast>', port))
+            broadcast_socket.sendto(id, ('192.168.4.255', port))
             broadcast_timer += 10
         # create new id every minute
         elif curr_timer > id_timer:
@@ -49,15 +48,15 @@ def udp_broadcaster():
         curr_timer = time.time() - start_time
 
 def udp_receiver():
-    udp_server = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP) # UDP
-    udp_server.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+    server_socket = socket(AF_INET, SOCK_DGRAM) # UDP
+    server_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
     global port
     global broadcast_id_str
-    udp_server.bind(("", port))
+    server_socket.bind(("", port))
 
     while True:
-        recv_id, recv_addr = udp_server.recvfrom(2048)
+        recv_id, recv_addr = server_socket.recvfrom(2048)
         recv_id = str(binascii.hexlify(recv_id), "utf-8")
         if broadcast_id_str != recv_id:
             print("Received ID: ", recv_id)
