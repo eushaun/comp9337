@@ -5,13 +5,14 @@ import sys
 import threading
 import time
 
-broadcast_id_str = ""
+broadcast_id_str = ''
+old_broadcast_id = ''
 
 # create sending and receiving UDP sockets for peer-to-peer
 udp_broadcast_socket = socket(AF_INET, SOCK_DGRAM)
 udp_broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
-server_host = gethostbyname(gethostname())
+server_host = ''
 udp_server = socket(AF_INET, SOCK_DGRAM)
 udp_server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 udp_server.bind((server_host, 55558))
@@ -22,6 +23,7 @@ print("[STARTING] UDP Broadcaster is starting...")
 def udp_broadcaster():
     
     global broadcast_id_str
+    global old_broadcast_id
     global udp_broadcast_socket
 
     host = '255.255.255.255'
@@ -47,6 +49,7 @@ def udp_broadcaster():
             broadcast_timer += 10
         # create new id every minute
         elif curr_timer > id_timer:
+            old_broadcast_id = broadcast_id_str
             broadcast_id = os.urandom(16)
             broadcast_id_str = str(binascii.hexlify(broadcast_id), "utf-8")
             print(f"Make new ID: {broadcast_id_str}")
@@ -57,14 +60,16 @@ def udp_broadcaster():
 def udp_receiver():
 
     global udp_server
+    global old_broadcast_id
     global broadcast_id_str
 
     # print("Listening")
     while True:
         recv_id, recv_addr = udp_server.recvfrom(2048)
         recv_id = str(binascii.hexlify(recv_id), "utf-8")
-        if broadcast_id_str != recv_id:
-            print("Received ID: ", recv_id)
+        # print(old_broadcast_id)
+        if broadcast_id_str != recv_id and broadcast_id_str != old_broadcast_id:
+            print("Received ID: ", recv_id, recv_addr)
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
