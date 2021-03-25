@@ -1,24 +1,26 @@
-import binascii
+from binascii import unhexlify
+from Crypto.Cipher import DES
+from decimal import Decimal
+from math import ceil
 import os
+import random
 from socket import *
 import sys
 import threading
 import time
 from uuid import uuid4
-import random
-from math import ceil
-from decimal import Decimal
 
+# gLobal Variable
 port = 37020
-broadcast_id = ""
+broadcast_id_shares = []
+FIELD_SIZE = 100000
+
+broadcast_key = 'fecdba98'
+broadcast_iv = '01234567'
+broadcast_des1 = DES.new(broadcast_key, DES.MODE_CBC, broadcast_iv)
+broadcast_des2 = DES.new(broadcast_key, DES.MODE_CBC, broadcast_iv)
 
 print("[STARTING] UDP Broadcaster is starting...")
-
-#######################
-## SHAMIR SHARING #####
-#######################
-
-FIELD_SIZE = 100000
 
 def reconstruct_secret(shares):
     sums = 0
@@ -28,10 +30,8 @@ def reconstruct_secret(shares):
         xj, yj = share_j
         prod = Decimal(1)
 
-        # f(x_n)
         prod *= yj
- 
- 		# * (x - x_n) / (x_n - x_n-1)
+        
         for i, share_i in enumerate(shares):
             xi, _ = share_i
             if i != j:
@@ -48,20 +48,14 @@ def calculate_poly(x, coefficients):
         y += x ** coefficient_index * coefficient_value
     return y
  
- 
- # generate polynomial of power m
-def generate_polynomial(m, secret):
-    coeff = [random.randrange(0, FIELD_SIZE) for _ in range(m - 1)]
-    coeff.append(secret)
-    return coeff
- 
  # generate 6 shares
 def generate_shares(secret):
 	m = 3
 	n = 6
 
 	# generate polynomials
-	coefficients = generate_polynomial(m, secret)
+	coefficients = [random.randrange(0, FIELD_SIZE) for _ in range(m - 1)]
+	coefficients.append(secret)
 
 	# get 3 random points of polynomials
 	shares = []
@@ -73,60 +67,69 @@ def generate_shares(secret):
 
 ######################
 
-# Task 1 - 3
+# broadcast Shares
 def udp_broadcaster():
 
-    # Create socket
-    broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-    broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+	global port, broadcast_id_shares, broadcast_des1, broadcast_des2
 
-    global port
-    global broadcast_id
+	# create socket
+	broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+	broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
-    # ephID
-    broadcast_id = str(uuid4().int)[0:16]
-    shares = generate_shares(int(broadcast_id))
-    print(f"Make new ID: {broadcast_id}")
-    print(shares)
+	# create new ephID
+	broadcast_id = str(uuid4().int)[0:16]
+	broadcast_id_shares = generate_shares(int(broadcast_id))
+	broadcast_hash = broadcast_des1.encrypt(broadcast_id)
+	print(f"Make new ID: {broadcast_id}")
+	print(broadcast_id_shares)
 
-    # timer
-    start_time = time.time()
-    id_timer = 18
-    broadcast_timer = 0
-    curr_timer = time.time() - start_time
+	# timer
+	start_time = time.time()
+	id_timer = 18
+	broadcast_timer = 0
+	curr_timer = time.time() - start_time
 
-    while True:
-        # broadcast id every 10 seconds
-        if curr_timer > broadcast_timer and len(shares) != 0:
-            print(f"Broadcast ID: {shares[0]}")
-            # broadcast_socket.sendto(broadcast_id.encode('utf-8'), ('192.168.4.255', port))
-            broadcast_socket.sendto(str(shares[0]).encode('utf-8'), ('192.168.4.255', port))
-            shares.pop(0)
-            broadcast_timer += 3
-        # create new id every minute
-        elif curr_timer > id_timer:
-            # id = os.urandom(16)
-            broadcast_id = str(uuid4().int)[0:16]
-            shares = generate_shares(int(broadcast_id))
-            print(f"Make new ID: {broadcast_id}")
-            print(shares)
-            id_timer += 18
+	while True:
 
-        curr_timer = time.time() - start_time
+		# broadcast id every 10 seconds
+		if curr_timer > broadcast_timer and len(broadcast_id_shares) != 0:
+			print(f"Broadcast ID: {broadcast_id_shares[0]}")
+			send_str = str(broadcast_id_shares[0][0]) + "|" + str(broadcast_id_shares[0][1]) + "|" + str(broadcast_hash)
+			broadcast_socket.sendto(send_str.encode('utf-8'), ('192.168.4.255', port))
+			broadcast_id_shares.pop(0)
+			broadcast_timer += 3
+
+		# create new id every minute
+		elif curr_timer > id_timer:
+			broadcast_id = str(uuid4().int)[0:16]
+			broadcast_id_shares = generate_shares(int(broadcast_id))
+			broadcast_hash = broadcast_des1.encrypt(broadcast_id)
+			print(f"Make new ID: {broadcast_id}")
+			print(broadcast_id_shares)
+			id_timer += 18
+
+		curr_timer = time.time() - start_time
 
 def udp_receiver():
-    server_socket = socket(AF_INET, SOCK_DGRAM) # UDP
-    server_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
-    global port
-    global broadcast_id
-    server_socket.bind(("", port))
+	global port, broadcast_id, broadcast_des2
 
-    while True:
-        recv_id, recv_addr = server_socket.recvfrom(2048)
-        recv_id = str(binascii.hexlify(recv_id), "utf-8")
-        if broadcast_id != recv_id:
-            print("Received ID: ", recv_id)
+	# create socket
+	server_socket = socket(AF_INET, SOCK_DGRAM) # UDP
+	server_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+	server_socket.bind(("", port))
+
+	while True:
+
+		# receive message
+		recv_msg, recv_addr = server_socket.recvfrom(2048)
+		recv_x, recv_y, recv_hash = recv_msg.decode("utf-8").split("|")
+		recv_hash = recv_hash[2:len(recv_hash) - 1 ]
+		print(len(recv_hash))
+		#str(recv_id.decode("utf-8")).split("|")
+		#print(recv_msg.decode("utf-8").split("|"))
+		#print(broadcast_des2.decrypt(recv_hash))
+		print(f"Received ({recv_x}, {recv_y}) - Hash = {recv_hash}")
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
