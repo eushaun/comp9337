@@ -67,6 +67,8 @@ def udp_broadcaster():
 def udp_receiver():
 
 	global port, broadcast_id, broadcast_des2
+	
+	new_contact_list = {}
 
 	# create socket
 	server_socket = socket(AF_INET, SOCK_DGRAM) # UDP
@@ -78,12 +80,27 @@ def udp_receiver():
 		# receive message
 		recv_msg, recv_addr = server_socket.recvfrom(2048)
 		recv_x, recv_y, recv_hash = recv_msg.decode("utf-8").split("|")
-		recv_hash = recv_hash[2:len(recv_hash) - 1 ]
-		print(len(recv_hash))
-		#str(recv_id.decode("utf-8")).split("|")
-		#print(recv_msg.decode("utf-8").split("|"))
-		#print(broadcast_des2.decrypt(recv_hash))
 		print(f"Received ({recv_x}, {recv_y}) - Hash = {recv_hash}")
+		
+		recv_x = int(recv_x)
+		recv_y = int(recv_y)
+		
+		if recv_hash not in new_contact_list.keys():
+			new_contact_list[recv_hash] = [(recv_x, recv_y)]
+		else:
+			new_contact_list[recv_hash].append((recv_x, recv_y))
+		
+		# Check if the hash contains 3 entries 
+		new_dict = {}
+		for curr_hash in new_contact_list.keys():
+			lst = new_contact_list[curr_hash]
+			if len(lst) == 3:
+				sec = reconstruct_secret(lst)
+				print(sec)
+			else:
+				new_dict[curr_hash] = lst
+		new_contact_list = new_dict
+			
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
