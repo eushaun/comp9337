@@ -1,5 +1,5 @@
+from bloom import *
 from ephid import *
-from Crypto.Cipher import DES
 from shamir import *
 from socket import *
 import threading
@@ -8,18 +8,18 @@ from hashlib import sha1
 
 # global variable
 port = 37025
-broadcast_id_shares = []
-
 g = 2583682
 x = 0
-
-# broadcast_key = 'fecdba98'
-# broadcast_iv = '01234567'
-# broadcast_des1 = DES.new(broadcast_key, DES.MODE_CBC, broadcast_iv)
-# broadcast_des2 = DES.new(broadcast_key, DES.MODE_CBC, broadcast_iv)
 broadcast_hash = ""
 
 print("[STARTING] UDP Broadcaster is starting...")
+
+def print_id(id, shares):
+	print()
+	print(f"Make new ID: {id}")
+	for i, shares in enumerate(shares):
+		print(f"Share {i+1}: {shares}")
+	print()
 
 ######################
 
@@ -27,7 +27,7 @@ print("[STARTING] UDP Broadcaster is starting...")
 def udp_broadcaster():
 
 	# global port, broadcast_id_shares, broadcast_des1, broadcast_des2, x, g
-	global port, broadcast_id_shares, broadcast_hash, x, g
+	global port, broadcast_hash, x, g
 
 	# create socket
 	broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
@@ -37,14 +37,11 @@ def udp_broadcaster():
 	x, broadcast_id = generate_ephid(g)
 	broadcast_id_shares = generate_shares(int(broadcast_id))
 
+	# hash of ephid
 	broadcast_hash = sha1(str(broadcast_id).encode()).hexdigest()
-	# broadcast_hash = broadcast_des1.encrypt(broadcast_id)
 
-	print()
-	print(f"Make new ID: {broadcast_id}")
-	for i, shares in enumerate(broadcast_id_shares):
-		print(f"Share {i+1}: {shares}")
-	print()
+	# print shares and id
+	print_id(broadcast_id, broadcast_id_shares)
 
 	# timer
 	start_time = time.time()
@@ -66,23 +63,19 @@ def udp_broadcaster():
 		elif curr_timer > id_timer:
 			x, broadcast_id = generate_ephid(g)
 			broadcast_id_shares = generate_shares(int(broadcast_id))
-
 			broadcast_hash = sha1(str(broadcast_id).encode()).hexdigest()
-			# broadcast_hash = broadcast_des1.encrypt(broadcast_id)
-
-			print()
-			print(f"Make new ID: {broadcast_id}")
-			for i, shares in enumerate(broadcast_id_shares):
-				print(f"Share {i+1}: {shares}")
-			print()
+			print_id(broadcast_id, broadcast_id_shares)
 			id_timer += 18
 
+		# update timer
 		curr_timer = time.time() - start_time
 
 def udp_receiver():
 
-	# global port, broadcast_id, broadcast_des2
 	global port, broadcast_hash, x
+
+	QBF = BloomFilter(100)
+	QBF_list = []
 	
 	new_contact_list = {}
 
@@ -101,7 +94,6 @@ def udp_receiver():
 		if recv_hash == broadcast_hash:
 			continue
 		else:
-			# print(f"Received ({recv_x}, {recv_y}) - Hash = {recv_hash}")
 			recv_x = int(recv_x)
 			recv_y = int(recv_y)
 			
@@ -131,25 +123,8 @@ def udp_receiver():
 					print(f"EncID is: {enc_id}")
 				print()
 
-			# # Check if the hash contains 3 entries 
-			# new_dict = {}
-			# for curr_hash in new_contact_list.keys():
-			# 	lst = new_contact_list[curr_hash]
-			# 	if len(lst) == 3:
-			# 		sec = reconstruct_secret(lst)
-			# 		print(f"Reconstructing EphID: {sec}")
-			# 		print("Verifying integrity of EphID...")
-			# 		new_hash = sha1(str(sec).encode()).hexdigest()
-			# 		print(f"Received hash: {recv_hash}")
-			# 		print(f"Recontructed hash: {new_hash}")
-			# 		if recv_hash == new_hash:
-			# 			print("Verified hash. Computing EncID...")
-			# 			enc_id = sec * x
-			# 			print(f"EncID is: {enc_id}")
-			# 	else:
-			# 		new_dict[curr_hash] = lst
-			# new_contact_list = new_dict
-			
+				QBF.add(str(enc_id))
+				print(QBF.bit_array)
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
