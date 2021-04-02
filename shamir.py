@@ -44,5 +44,5 @@ def reconstruct_secret(shares):
                 prod *= Decimal(Decimal(xi)/(xi-xj))
  
         sums += Decimal(prod)
-        print(sums)
+ 
     return int(round(Decimal(sums), 0))

@@ -32,7 +32,7 @@ def generate_ephid():
 	curve = SECP128r1
 	secexp = randrange(curve.order)
 	sk = SigningKey.from_secret_exponent(secexp, curve)
-	ephid = int(hexlify(sk.to_string()), 16)
+	ephid = hexlify(sk.to_string()).decode()
 	return secexp, ephid
 
 # print(generate_ephid())
