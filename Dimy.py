@@ -7,8 +7,7 @@ import time
 from hashlib import sha1
 
 # global variable
-port = 37025
-g = 2583682
+port = 37030
 x = 0
 broadcast_hash = ""
 
@@ -34,7 +33,7 @@ def udp_broadcaster():
 	broadcast_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 
 	# create new ephID
-	x, broadcast_id = generate_ephid(g)
+	x, broadcast_id = generate_ephid()
 	broadcast_id_shares = generate_shares(int(broadcast_id))
 
 	# hash of ephid
@@ -61,7 +60,7 @@ def udp_broadcaster():
 
 		# create new id every minute
 		elif curr_timer > id_timer:
-			x, broadcast_id = generate_ephid(g)
+			x, broadcast_id = generate_ephid()
 			broadcast_id_shares = generate_shares(int(broadcast_id))
 			broadcast_hash = sha1(str(broadcast_id).encode()).hexdigest()
 			print_id(broadcast_id, broadcast_id_shares)
