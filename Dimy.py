@@ -1,11 +1,11 @@
 from bloom import *
 from ephid import *
-from shamir import *
 from socket import *
 import threading
 import time
 from hashlib import sha256
 from binascii import hexlify, unhexlify
+from Crypto.Protocol.SecretSharing import Shamir
 
 # global variable
 port = 38000
@@ -35,7 +35,7 @@ def udp_broadcaster():
 
 	# create new ephID and generate recv_shares
 	priv_key, broadcast_id = generate_ephid()
-	broadcast_id_recv_shares = generate_shares(broadcast_id)
+	broadcast_id_recv_shares = Shamir.split(3, 6, broadcast_id)
 	
 	# hash of ephid
 	broadcast_hash = sha256(broadcast_id).hexdigest()
@@ -63,7 +63,7 @@ def udp_broadcaster():
 		elif curr_timer > id_timer:
 			# create new ephID and generate recv_shares
 			priv_key, broadcast_id = generate_ephid()
-			broadcast_id_recv_shares = generate_shares(broadcast_id)
+			broadcast_id_recv_shares = Shamir.split(3, 6, broadcast_id)
 			
 			# hash of ephid
 			broadcast_hash = sha256(broadcast_id).hexdigest()
@@ -121,7 +121,7 @@ def udp_receiver():
 			
 			# Check if the hash contains 3 entries
 			if num_recv_shares == 3:
-				sec = reconstruct_secret(new_contact_list[recv_hash])
+				sec = Shamir.combine(new_contact_list[recv_hash])
 				print(f"Reconstructing EphID: {hexlify(sec)}")
 				print("Verifying integrity of EphID...")
 				new_hash = sha256(sec).hexdigest()
