@@ -1,6 +1,6 @@
 import math
 from bitarray import bitarray
-import mmh3
+import hashlib
 
  
 class BloomFilter(object):
@@ -15,17 +15,11 @@ class BloomFilter(object):
  
         # initialize all bits as 0
         self.bit_array.setall(0)
- 
+
     # add item into filter
-    def add(self, item):
-        
-        digest1 = mmh3.hash(item) % self.filter_size
-
-        digest2 = mmh3.hash128(item) % self.filter_size
-
-        # set the bit True in bit_array
-        self.bit_array[digest1] = True
-        self.bit_array[digest2] = True
+    def add(self, key):
+        for i in self.hashes(key):
+            self.bit_array[i] = 1
  
     # check for existence of item in filter
     def check(self, item):
@@ -37,9 +31,28 @@ class BloomFilter(object):
 
         return True
 
+    def hashes(self, key):
+        h = hashlib.new('md5')
+        h.update(str(key).encode())
+        x = int(h.hexdigest(), 16)
+        for _unused in range(2):
+            if x < 1024 * self.filter_size:
+                h.update(b'x')
+                x = int(h.hexdigest(), 16)
+            x, y = divmod(x, self.filter_size)
+            yield y
+
+    def merge(self, *args):
+        self.bit_array.setall(0)
+        for arg in args:
+            self.bit_array |= arg.bit_array
+
+
 # main function
 if __name__ == "__main__":
-    bloomf = BloomFilter(100)
+    bloomf1 = BloomFilter(100)
+    bloomf2 = BloomFilter(100)
+    bloomf3 = BloomFilter(100)
 
     # words to be added
     word_present = ['abound','abounds','abundance','abundant','accessable',
@@ -53,5 +66,13 @@ if __name__ == "__main__":
                    'geeksforgeeks','twitter']
  
     for item in word_present:
-        bloomf.add(item)
-    print(bloomf.bit_array)
+        bloomf1.add(item)
+
+    for item in word_absent:
+        bloomf2.add(item)
+
+    print(bloomf1.bit_array.to01())
+    print(bloomf2.bit_array.to01())
+
+    bloomf3.merge(bloomf1, bloomf2)
+    print(bloomf3.bit_array.to01())
