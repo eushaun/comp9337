@@ -5,7 +5,7 @@ pip3 install ecdsa
 pip3 install pycryptodome
 ```
 
-# How to install on Pi offline
+# How to install library offline on Pi
 ```
 1) Download the library folder
 2) Copy those files to Pi
