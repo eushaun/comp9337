@@ -16,20 +16,13 @@ class BloomFilter(object):
         # initialize all bits as 0
         self.bit_array.setall(0)
 
+    def __str__(self):
+        return self.bit_array.to01()
+
     # add item into filter
     def add(self, key):
         for i in self.hashes(key):
             self.bit_array[i] = 1
- 
-    # check for existence of item in filter
-    def check(self, item):
-
-        for i in range(self.hash_count):
-            digest = mmh3.hash(item, i) % self.size
-            if self.bit_array[digest] == False:
-                return False
-
-        return True
 
     def hashes(self, key):
         h = hashlib.new('md5')
@@ -42,10 +35,13 @@ class BloomFilter(object):
             x, y = divmod(x, self.filter_size)
             yield y
 
-    def merge(self, *args):
+    def merge(self, filters_list):
         self.bit_array.setall(0)
-        for arg in args:
-            self.bit_array |= arg.bit_array
+        for dbf in filters_list:
+            self.bit_array |= dbf.bit_array
+
+    def restart(self):
+        self.bit_array.setall(0)
 
 
 # main function
@@ -71,8 +67,8 @@ if __name__ == "__main__":
     for item in word_absent:
         bloomf2.add(item)
 
-    print(bloomf1.bit_array.to01())
-    print(bloomf2.bit_array.to01())
+    print(str(bloomf1))
+    print(str(bloomf2))
 
-    bloomf3.merge(bloomf1, bloomf2)
-    print(bloomf3.bit_array.to01())
+    bloomf3.merge([bloomf1, bloomf2])
+    print(str(bloomf3))
