@@ -21,6 +21,7 @@ The main problem of install ECDSA library is the non-existence of SEP128r1 curve
 
 ## On Computer
 ```
+cd ~
 git clone https://github.com/tlsfuzzer/python-ecdsa
 sudo cp ~/python-ecdsa/src/ecdsa/*.py /usr/lib/python3/dist-packages/ecdsa
 ```
