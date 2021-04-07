@@ -1,25 +1,26 @@
+# custom library files
 from bloom import *
 from ephid import *
+from helper import *
+from sender import *
+
+# imported library
+from binascii import hexlify, unhexlify
+from Crypto.Protocol.SecretSharing import Shamir
+from hashlib import sha256
 from socket import *
 import threading
 import time
-from hashlib import sha256
-from binascii import hexlify, unhexlify
-from Crypto.Protocol.SecretSharing import Shamir
 
 # global variable
-port = 38000
+port = 40000
 priv_key = 0
 broadcast_hash = ""
+filter_size = 10000
+dbf = BloomFilter(filter_size)
+dbf_list = []
 
 print("[STARTING] UDP Broadcaster is starting...")
-
-def print_id(id, recv_shares):
-	print()
-	print(f"Make new 16-byte ID: {hexlify(id)}")
-	for i, recv_share in recv_shares:
-		print(f"Share {i}: ({i}, {hexlify(recv_share)})")
-	print()
 
 ######################
 
@@ -80,12 +81,11 @@ def udp_broadcaster():
 # receiving thread
 def udp_receiver():
 
-	global port, broadcast_hash, priv_key
-
-	QBF = BloomFilter(100)
-	QBF_list = []
+	global port, broadcast_hash, priv_key, dbf
 	
 	new_contact_list = {}
+
+	dbf.restart()
 
 	# create socket
 	server_socket = socket(AF_INET, SOCK_DGRAM) # UDP
@@ -95,6 +95,7 @@ def udp_receiver():
 	while True:
 
 		# receive message
+		print("Receiving")
 		recv_msg, recv_addr = server_socket.recvfrom(2048)
 		recv_index, recv_share, recv_hash = recv_msg.decode("utf-8").split("|")
 
@@ -137,12 +138,43 @@ def udp_receiver():
 					print("Error: Hash not verified.")
 				print()
 
-				QBF.add(str(enc_id))
-				print(QBF.bit_array)
+				dbf.add(str(enc_id))
+
+def udp_sender():
+
+	global dbf
+
+	dbf_list = []
+	qbf = BloomFilter(filter_size)
+
+	start_time = time.time()
+	dbf_timer = 5
+	curr_timer = time.time() - start_time
+
+	while True:
+
+		if curr_timer > dbf_timer:
+			print("Creating new DBF")
+			dbf_list.append(dbf)
+			dbf.restart()
+			dbf_timer += 3
+
+		if len(dbf_list) == 3:
+			print("Sending QBF to server")
+			qbf.merge(dbf_list)
+			send_qbf(str(qbf))
+			dbf_list = []
+
+		# update timer
+		curr_timer = time.time() - start_time
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
 udp_broad_thread.start()
+
+# thread for receiving messages
+udp_sender_thread = threading.Thread(name = "ClientSender", target = udp_sender)
+udp_sender_thread.start()
 
 # thread for receiving messages
 udp_receiver_thread = threading.Thread(name = "ClientReceiver", target = udp_receiver)
