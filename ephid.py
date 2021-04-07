@@ -1,7 +1,5 @@
 from ecdsa import SigningKey, SECP128r1
 from ecdsa.util import randrange
-from binascii import hexlify
-import random
 
 # ECDSA library: 
 # https://github.com/tlsfuzzer/python-ecdsa
@@ -9,17 +7,18 @@ import random
 # NOTE: the pre-installed ecdsa package in Kali Linux does not include 
 # secp128r1 curve, but the above source code does.
 
-# To update the package in Kali Linux, in your working directory,
-# cd ~
-# git clone https://github.com/tlsfuzzer/python-ecdsa
-# sudo cp ~/python-ecdsa/src/*.py /usr/lib/python3/dist-packages/ecdsa
+'''
+To update the package in Kali Linux, in your working directory,
+	cd ~
+	git clone https://github.com/tlsfuzzer/python-ecdsa
+	sudo cp ~/python-ecdsa/src/*.py /usr/lib/python3/dist-packages/ecdsa
 
-# To install the package in Raspberry Pi,
-# from a terminal in Kali Linux,
-# scp -r ~/python-ecdsa/src/ecdsa pi@192.168.4.1:~
+To install the package in Raspberry Pi from a terminal in Kali Linux,
+	scp -r ~/python-ecdsa/src/ecdsa pi@192.168.4.1:~
 
-# then from a terminal in your Raspberry Pi,
-# sudo mv ~/ecdsa /usr/lib/python3/dist-packages/
+then from a terminal in your Raspberry Pi,
+	sudo mv ~/ecdsa /usr/lib/python3/dist-packages/
+'''
 
 # code snippet taken from 
 # https://github.com/tlsfuzzer/python-ecdsa/blob/master/src/ecdsa/keys.py#L829
@@ -36,10 +35,5 @@ def generate_ephid():
 
 	return secexp, ephid
 
-# print(generate_ephid())
-
-# def generate_ephid():
-# 	g = 2583682
-# 	x = random.randint(1, 1000000000)
-# 	id_length = len(str(g * x).encode('utf-8'))
-# 	return x, '0' * (16 - id_length) + str(g * x)
+if __name__ == "__main__":
+	print(generate_ephid())
