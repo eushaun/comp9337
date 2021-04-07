@@ -1,0 +1,59 @@
+
+***** REST APIs for COMP4337 assignment *****
+
+API - uploading CBF to backend server
+    URL: http://ec2-3-25-246-159.ap-southeast-2.compute.amazonaws.com:9000/comp4337/cbf/upload
+    request method: POST
+    request body:
+      data type: JSON
+      data format:
+      {
+          CBF: YOUR OWN CBF(String which is encoded in base64)
+      }
+
+    response:
+      case 1: success
+        {
+            result: Success,
+            message: upload CBF success
+        }
+      other case:
+        {
+            result: Failed,
+            message: please check your CBF
+        }
+
+
+API - periodical query (every 60 minutes - QBF)
+    URL: http://ec2-3-25-246-159.ap-southeast-2.compute.amazonaws.com:9000/comp4337/qbf/query
+    request method: POST
+    request body:
+      data type: JSON
+      data format:
+      {
+          QBF: YOUR OWN QBF(String which is encoded in base64)
+      }
+
+    response:
+      case 1: positive
+        {
+            result: Match.
+            message: You are potentially at risk. Please consult a health official, self-isolate and do a COVID-19 test at your earliest.
+        }
+      case 2:
+        {
+            result: No Match.
+            message: You are safe.
+        }
+
+
+***** NOTE *****
+If your request data format is NOT same as the above requirement, you will receive:
+{
+    "timestamp": "2021-03-22T02:10:13.257+00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "",
+    "path": "/comp4337/cbf/upload"
+}
+
