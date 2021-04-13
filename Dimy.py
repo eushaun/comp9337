@@ -134,11 +134,12 @@ def udp_receiver():
 					print(f"Verified hash. Computing EncID...")
 					enc_id = int(hexlify(sec), 16) * priv_key
 					print(f"EncID is: {enc_id}")
+					print("Adding EncID to DBF and deleting EncID...")
+					dbf.add(str(enc_id))
 				else:
 					print("Error: Hash not verified.")
-				print()
+				# print()
 
-				dbf.add(str(enc_id))
 
 def udp_sender():
 
@@ -160,9 +161,10 @@ def udp_sender():
 			dbf_timer += 3
 
 		if len(dbf_list) == 3:
-			print("Sending QBF to server")
+			print("Creating QBF")
 			qbf.merge(dbf_list)
-			send_qbf(str(qbf))
+			print("Sending QBF to server")
+			print(send_qbf(str(qbf)))
 			dbf_list = []
 
 		# update timer
