@@ -11,6 +11,7 @@ from hashlib import sha256
 from socket import *
 import threading
 import time
+from copy import deepcopy
 
 # global variable
 port = 40000
@@ -46,8 +47,8 @@ def udp_broadcaster():
 
 	# timer
 	start_time = time.time()
-	broadcast_timer = 1		# 10 seconds
-	id_timer = 6			# 1 minute
+	broadcast_timer = 5		# 10 seconds
+	id_timer = 30			# 1 minute
 	curr_timer = time.time() - start_time
 
 	while True:
@@ -58,7 +59,7 @@ def udp_broadcaster():
 			send_str = str(broadcast_id_recv_shares[0][0]) + "|" + hexlify(broadcast_id_recv_shares[0][1]).decode() + "|" + broadcast_hash
 			broadcast_socket.sendto(send_str.encode('utf-8'), ('192.168.4.255', port))
 			broadcast_id_recv_shares.pop(0)
-			broadcast_timer += 1
+			broadcast_timer += 5
 
 		# create new id every minute
 		elif curr_timer > id_timer:
@@ -73,7 +74,7 @@ def udp_broadcaster():
 			print_id(broadcast_id, broadcast_id_recv_shares)
 
 			# set timer
-			id_timer += 6
+			id_timer += 30
 
 		# update timer
 		curr_timer = time.time() - start_time
@@ -150,8 +151,8 @@ def udp_sender():
 	qbf = BloomFilter(filter_size)
 
 	start_time = time.time()
-	dbf_timer = 60		# 10 minutes
-	qbf_timer = 360  	# 60 minutes
+	dbf_timer = 300		# 10 minutes
+	qbf_timer = 1800  	# 60 minutes
 	curr_timer = time.time() - start_time
 
 	while not covid:
@@ -160,30 +161,29 @@ def udp_sender():
 			if len(dbf_list) == 6:
 				dbf_list.pop(0)
 
-			dbf_list.append(dbf)	
+			dbf_list.append(deepcopy(dbf))	
 			dbf.restart()
-			dbf_timer += 60
+			dbf_timer += 300
 
 			print()
 			print(f"[TASK 7B] Creating new DBF...")
 			print()
 
 		if curr_timer > qbf_timer:
-			qbf.merge(dbf_list)
-			resp = send_qbf(str(qbf))
-			qbf_timer += 360
-
 			# print debug messages
 			print()
 			print("All available DBFs:")
 			for i, bf in enumerate(dbf_list):
 				print(f"DBF {i+1}: {bf.get_indices()}")
 			print()
+			qbf.merge(dbf_list)
 			print(f"[TASK 8] Creating QBF: {qbf.get_indices()}")
 			print("[TASK 9A] Sending QBF to server, waiting for result...")
 			print()
+			resp = send_qbf(qbf.bit_array)
 			print(f"[TASK 9B] Query result: {resp['result']}. {resp['message']}")
 			print()
+			qbf_timer += 1800
 
 		# update timer
 		curr_timer = time.time() - start_time
@@ -192,7 +192,7 @@ def monitor_input():
 	global dbf, dbf_list, filter_size, covid
 
 	# wait till the first dbf has generated
-	time.sleep(60)		# follow dbf_timer
+	time.sleep(300)		# follow dbf_timer
 
 	print("##############################################################")
 	print("#                                                            #")
@@ -214,7 +214,7 @@ def monitor_input():
 		covid = 1
 		cbf = BloomFilter(filter_size)
 		cbf.merge(dbf_list)
-		send_cbf(str(cbf))
+		send_cbf(cbf.bit_array)
 		print("Upload success")
 
 # thread for listening for beacons

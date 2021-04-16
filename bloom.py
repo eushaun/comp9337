@@ -1,6 +1,5 @@
 import math
 from bitarray import bitarray
-import hashlib
 import re
 import mmh3
  
@@ -30,17 +29,6 @@ class BloomFilter(object):
         for i in seed:
             index = mmh3.hash(str(key), i) % self.filter_size
             yield index
-
-    # def hashes(self, key):
-    #     h = hashlib.new('md5')
-    #     h.update(str(key).encode())
-    #     x = int(h.hexdigest(), 16)
-    #     for _unused in range(2):
-    #         if x < 1024 * self.filter_size:
-    #             h.update(b'x')
-    #             x = int(h.hexdigest(), 16)
-    #         x, y = divmod(x, self.filter_size)
-    #         yield y
 
     def merge(self, filters_list):
         self.bit_array.setall(0)
@@ -72,10 +60,11 @@ if __name__ == "__main__":
     for item in word_present:
         bloomf1.add(item)
 
-    for item in word_absent:
-        bloomf2.add(item)
+    # for item in word_absent:
+    #     bloomf2.add(item)
 
-    print(bloomf1)
-    print(str(bloomf2))
+    print(bloomf1.bit_array)
+    print(type(bloomf1.bit_array))
+    # print(str(bloomf2))
 
-    bloomf3.merge([bloomf1, bloomf2])
+    # bloomf3.merge([bloomf1, bloomf2])
