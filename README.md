@@ -3,6 +3,7 @@
 pip3 install bitarray
 pip3 install ecdsa
 pip3 install pycryptodome
+pip3 install mmh3
 ```
 
 # How to install library offline on Pi
