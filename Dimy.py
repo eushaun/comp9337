@@ -16,18 +16,18 @@ import time
 port = 40000
 priv_key = 0
 broadcast_hash = ""
-filter_size = 10000
+filter_size = 100000
 dbf = BloomFilter(filter_size)
 dbf_list = []
+covid = 0
 
-print("[STARTING] UDP Broadcaster is starting...")
+print(f"[STARTING] Program is starting on port {port}.")
 
 ######################
 
-# broadcasting thread
+# thread to broadcast shares
 def udp_broadcaster():
 
-	# global port, broadcast_id_recv_shares, broadcast_des1, broadcast_des2, x, g
 	global port, broadcast_hash, priv_key
 
 	# create socket
@@ -46,19 +46,19 @@ def udp_broadcaster():
 
 	# timer
 	start_time = time.time()
-	id_timer = 18
-	broadcast_timer = 0
+	broadcast_timer = 1		# 10 seconds
+	id_timer = 6			# 1 minute
 	curr_timer = time.time() - start_time
 
 	while True:
 
 		# broadcast id every 10 seconds
 		if curr_timer > broadcast_timer and len(broadcast_id_recv_shares) != 0:
-			print(f"Broadcast recv_share: {broadcast_id_recv_shares[0][0], hexlify(broadcast_id_recv_shares[0][1])}")
+			print(f"[TASK 3A] Broadcasting shares: {broadcast_id_recv_shares[0][0], hexlify(broadcast_id_recv_shares[0][1])}")
 			send_str = str(broadcast_id_recv_shares[0][0]) + "|" + hexlify(broadcast_id_recv_shares[0][1]).decode() + "|" + broadcast_hash
 			broadcast_socket.sendto(send_str.encode('utf-8'), ('192.168.4.255', port))
 			broadcast_id_recv_shares.pop(0)
-			broadcast_timer += 3
+			broadcast_timer += 1
 
 		# create new id every minute
 		elif curr_timer > id_timer:
@@ -73,12 +73,12 @@ def udp_broadcaster():
 			print_id(broadcast_id, broadcast_id_recv_shares)
 
 			# set timer
-			id_timer += 18
+			id_timer += 6
 
 		# update timer
 		curr_timer = time.time() - start_time
 
-# receiving thread
+# thread to receive shares
 def udp_receiver():
 
 	global port, broadcast_hash, priv_key, dbf
@@ -92,11 +92,12 @@ def udp_receiver():
 	server_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 	server_socket.bind(("", port))
 
-	while True:
+	print("Waiting to receive shares from other devices...")
+	print()
 
+	while True:
 		# receive message
-		print("Receiving")
-		recv_msg, recv_addr = server_socket.recvfrom(2048)
+		recv_msg, _ = server_socket.recvfrom(2048)
 		recv_index, recv_share, recv_hash = recv_msg.decode("utf-8").split("|")
 
 		# skip if receive own message
@@ -116,62 +117,108 @@ def udp_receiver():
 			
 			# keep track of number of recv_shares received
 			num_recv_shares = len(new_contact_list[recv_hash])
-			print()
-			print(f"Received {num_recv_shares} recv_shares for {recv_hash}.")
+			# print()
+			print(f"[TASK 3B/3C] Received {num_recv_shares} recv_shares for {recv_hash}.")
 			print()
 			
 			# Check if the hash contains 3 entries
 			if num_recv_shares == 3:
 				sec = Shamir.combine(new_contact_list[recv_hash])
-				print(f"Reconstructing EphID: {hexlify(sec)}")
-				print("Verifying integrity of EphID...")
+				print(f"[TASK 4A] Reconstructing EphID: {hexlify(sec)}")
+				print("[TASK 4B] Verifying integrity of EphID...")
 				new_hash = sha256(sec).hexdigest()
 				print()
 				print(f"Received hash: 	   {recv_hash}")
 				print(f"Recontructed hash: {new_hash}")
 				print()
 				if recv_hash == new_hash:
-					print(f"Verified hash. Computing EncID...")
+					print("Verified hash. Computing EncID...")
 					enc_id = int(hexlify(sec), 16) * priv_key
-					print(f"EncID is: {enc_id}")
-					print("Adding EncID to DBF and deleting EncID...")
+					print(f"[TASK 5A/5B] EncID is: {enc_id}")
+					print("[TASK 6] Adding EncID to DBF and deleting EncID...")
 					dbf.add(str(enc_id))
+					print(f"[TASK 7A] Current state of DBF: {dbf.get_indices()}")
 				else:
 					print("Error: Hash not verified.")
-				# print()
+					print()
 
-
+# thread to deal with backend API
 def udp_sender():
 
-	global dbf
+	global dbf, dbf_list, filter_size, covid
 
-	dbf_list = []
 	qbf = BloomFilter(filter_size)
 
 	start_time = time.time()
-	dbf_timer = 5
+	dbf_timer = 60		# 10 minutes
+	qbf_timer = 360  	# 60 minutes
 	curr_timer = time.time() - start_time
 
-	while True:
-
+	while not covid:
 		if curr_timer > dbf_timer:
-			print("Creating new DBF")
-			dbf_list.append(dbf)
-			dbf.restart()
-			dbf_timer += 3
+			# remove oldest DBF
+			if len(dbf_list) == 6:
+				dbf_list.pop(0)
 
-		if len(dbf_list) == 3:
-			print("Creating QBF")
+			dbf_list.append(dbf)	
+			dbf.restart()
+			dbf_timer += 60
+
+			print()
+			print(f"[TASK 7B] Creating new DBF...")
+			print()
+
+		if curr_timer > qbf_timer:
 			qbf.merge(dbf_list)
-			print("Sending QBF to server")
-			print(send_qbf(str(qbf)))
-			dbf_list = []
+			resp = send_qbf(str(qbf))
+			qbf_timer += 360
+
+			# print debug messages
+			print()
+			print("All available DBFs:")
+			for i, bf in enumerate(dbf_list):
+				print(f"DBF {i+1}: {bf.get_indices()}")
+			print()
+			print(f"[TASK 8] Creating QBF: {qbf.get_indices()}")
+			print("[TASK 9A] Sending QBF to server, waiting for result...")
+			print()
+			print(f"[TASK 9B] Query result: {resp['result']}. {resp['message']}")
+			print()
 
 		# update timer
 		curr_timer = time.time() - start_time
 
+def monitor_input():
+	global dbf, dbf_list, filter_size, covid
+
+	# wait till the first dbf has generated
+	time.sleep(60)		# follow dbf_timer
+
+	print("##############################################################")
+	print("#                                                            #")
+	print("#     Type 'uploadcbf' to upload your CBF to the server      #")
+	print("#                                                            #")
+	print("##############################################################")
+	print()
+
+	# listen for input from user
+	command = input()
+	if command == 'uploadcbf':  
+		# print messages
+		print()
+		print("User has COVID-19. The program will stop generating QBFs now.")
+		print("[TASK 10] Uploading CBF to the backend server...")
+		print()
+
+		# create CBF
+		covid = 1
+		cbf = BloomFilter(filter_size)
+		cbf.merge(dbf_list)
+		send_cbf(str(cbf))
+		print("Upload success")
+
 # thread for listening for beacons
-udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster, daemon = True)
+udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster)
 udp_broad_thread.start()
 
 # thread for receiving messages
@@ -181,3 +228,7 @@ udp_sender_thread.start()
 # thread for receiving messages
 udp_receiver_thread = threading.Thread(name = "ClientReceiver", target = udp_receiver)
 udp_receiver_thread.start()
+
+# thread for monitoring user input
+monitor_input_thread = threading.Thread(name = "MonitorInput", target = monitor_input)
+monitor_input_thread.start()

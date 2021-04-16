@@ -1,7 +1,8 @@
 import math
 from bitarray import bitarray
 import hashlib
-
+import re
+import mmh3
  
 class BloomFilter(object):
 
@@ -25,15 +26,21 @@ class BloomFilter(object):
             self.bit_array[i] = 1
 
     def hashes(self, key):
-        h = hashlib.new('md5')
-        h.update(str(key).encode())
-        x = int(h.hexdigest(), 16)
-        for _unused in range(2):
-            if x < 1024 * self.filter_size:
-                h.update(b'x')
-                x = int(h.hexdigest(), 16)
-            x, y = divmod(x, self.filter_size)
-            yield y
+        seed = [42, 69, 99]
+        for i in seed:
+            index = mmh3.hash(str(key), i) % self.filter_size
+            yield index
+
+    # def hashes(self, key):
+    #     h = hashlib.new('md5')
+    #     h.update(str(key).encode())
+    #     x = int(h.hexdigest(), 16)
+    #     for _unused in range(2):
+    #         if x < 1024 * self.filter_size:
+    #             h.update(b'x')
+    #             x = int(h.hexdigest(), 16)
+    #         x, y = divmod(x, self.filter_size)
+    #         yield y
 
     def merge(self, filters_list):
         self.bit_array.setall(0)
@@ -43,6 +50,10 @@ class BloomFilter(object):
     def restart(self):
         self.bit_array.setall(0)
 
+    def get_indices(self):
+        iter = re.finditer('1', str(self.bit_array))
+        indices = [m.start(0) for m in iter]
+        return indices
 
 # main function
 if __name__ == "__main__":
@@ -51,10 +62,7 @@ if __name__ == "__main__":
     bloomf3 = BloomFilter(100)
 
     # words to be added
-    word_present = ['abound','abounds','abundance','abundant','accessable',
-        'bloom','blossom','bolster','bonny','bonus','bonuses',
-        'coherent','cohesive','colorful','comely','comfort',
-        'gems','generosity','generous','generously','genial']
+    word_present = [67488643248729147932]
 
     # word not added
     word_absent = ['bluff','cheater','hate','war','humanity',
@@ -67,8 +75,7 @@ if __name__ == "__main__":
     for item in word_absent:
         bloomf2.add(item)
 
-    print(str(bloomf1))
+    print(bloomf1)
     print(str(bloomf2))
 
     bloomf3.merge([bloomf1, bloomf2])
-    print(str(bloomf3))
