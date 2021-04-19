@@ -9,7 +9,7 @@ def send_qbf(qbf):
 	headers = CaseInsensitiveDict()
 	headers["Content-Type"] = "application/json"
 	# data = '{{QBF: {0}}}'.format(base64.b64encode(bytes(qbf, encoding="ascii")))
-	data = '{0}'.format(str(base64.b64encode(qbf)))
+	data = '{0}'.format(base64.b64encode(qbf).decode())
 	payload = {
 		'QBF': data
 	}
@@ -25,7 +25,7 @@ def send_cbf(cbf):
 	headers = CaseInsensitiveDict()
 	headers["Content-Type"] = "application/json"
 	# data = '{{CBF: {0}}}'.format(base64.b64encode(bytes(cbf, encoding="ascii")))
-	data = '{0}'.format(str(base64.b64encode(cbf)))
+	data = '{0}'.format(base64.b64encode(cbf).decode())
 	payload = {
 		'CBF': data
 	}

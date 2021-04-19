@@ -17,7 +17,7 @@ from copy import deepcopy
 port = 40000
 priv_key = 0
 broadcast_hash = ""
-filter_size = 100000
+filter_size = 100000 * 8
 dbf = BloomFilter(filter_size)
 dbf_list = []
 covid = 0
