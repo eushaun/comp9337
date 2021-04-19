@@ -23,7 +23,10 @@ class BloomFilter(object):
     def add(self, key):
         for i in self.hashes(key):
             self.bit_array[i] = 1
-
+ 
+    # code snippets taken from
+    # https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/
+    # compute value of string using 3 different hash functions
     def hashes(self, key):
         seed = [42, 69, 99]
         for i in seed:
