@@ -192,7 +192,7 @@ def monitor_input():
 	global dbf, dbf_list, filter_size, covid
 
 	# wait till the first dbf has generated
-	time.sleep(300)		# follow dbf_timer
+	# time.sleep(300)		# follow dbf_timer
 
 	print("##############################################################")
 	print("#                                                            #")
@@ -202,20 +202,22 @@ def monitor_input():
 	print()
 
 	# listen for input from user
-	command = input()
-	if command == 'uploadcbf':  
-		# print messages
-		print()
-		print("User has COVID-19. The program will stop generating QBFs now.")
-		print("[TASK 10] Uploading CBF to the backend server...")
-		print()
+	while True:
+		command = input()
+		if command == 'uploadcbf':  
+			# print messages
+			print()
+			print("User has COVID-19. The program will stop generating QBFs now.")
+			print("[TASK 10] Uploading CBF to the backend server...")
+			print()
 
-		# create CBF
-		covid = 1
-		cbf = BloomFilter(filter_size)
-		cbf.merge(dbf_list)
-		send_cbf(cbf.bit_array)
-		print("Upload success")
+			# create CBF
+			covid = 1
+			cbf = BloomFilter(filter_size)
+			cbf.merge(dbf_list)
+			send_cbf(cbf.bit_array)
+			print("Upload success")
+			break
 
 # thread for listening for beacons
 udp_broad_thread = threading.Thread(name = "ClientBroadcaster", target = udp_broadcaster)
