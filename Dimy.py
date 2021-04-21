@@ -6,12 +6,12 @@ from sender import *
 
 # imported library
 from binascii import hexlify, unhexlify
+from copy import deepcopy
 from Crypto.Protocol.SecretSharing import Shamir
 from hashlib import sha256
 from socket import *
 import threading
 import time
-from copy import deepcopy
 
 # global variable
 port = 40000
@@ -49,8 +49,10 @@ def udp_broadcaster():
 
 	# timer
 	start_time = time.time()
-	broadcast_timer = 10		# 10 seconds
-	id_timer = 60				# 1 minute
+	# 10 seconds to broadcast new share
+	broadcast_timer = 10
+	# 1 minute to make new ID
+	id_timer = 60
 	curr_timer = time.time() - start_time
 
 	while True:
@@ -87,6 +89,7 @@ def udp_receiver():
 
 	global port, broadcast_hash, priv_key, dbf, old_hash
 	
+	# dictionary of (hash, shares)
 	new_contact_list = {}
 
 	dbf.restart()
@@ -114,6 +117,7 @@ def udp_receiver():
 			# recv_share
 			recv_share = unhexlify(recv_share.encode())
 			
+			# if hash not in dict, make a new entry
 			if recv_hash not in new_contact_list.keys():
 				new_contact_list[recv_hash] = [(recv_index, recv_share)]
 			else:
@@ -121,31 +125,42 @@ def udp_receiver():
 			
 			# keep track of number of recv_shares received
 			num_recv_shares = len(new_contact_list[recv_hash])
-			# print()
+			
 			print(f"[TASK 3B/3C] Received {num_recv_shares} recv_shares for {recv_hash}.")
 			print()
 			
-			# Check if the hash contains 3 entries
+			# check if the hash contains 3 entries
 			if num_recv_shares == 3:
 				sec = Shamir.combine(new_contact_list[recv_hash])
+				
 				print()
 				print(f"[TASK 4A] Reconstructing EphID: {hexlify(sec)}")
 				print("[TASK 4B] Verifying integrity of EphID...")
+				
+				# make new hash from combined shares
 				new_hash = sha256(sec).hexdigest()
+				
 				print()
 				print(f"Received hash: 	   {recv_hash}")
 				print(f"Recontructed hash: {new_hash}")
 				print()
+				
+				# if both hashes are equal, get encid and add to dbf
 				if recv_hash == new_hash:
 					print("Verified hash. Computing EncID...")
 					enc_id = int(hexlify(sec), 16) * priv_key
 					print(f"[TASK 5A/5B] EncID is: {enc_id}")
 					print("[TASK 6] Adding EncID to DBF and deleting EncID...")
+					
 					dbf.add(str(enc_id))
+					
 					print()
 					print(f"[TASK 7A] Current state of DBF: {dbf.get_indices()}")
 					print()
+					
+				# if not, discard the shares from dict
 				else:
+					del new_contact_list[recv_hash]
 					print("Error: Hash not verified.")
 					print()
 
@@ -154,14 +169,19 @@ def udp_sender():
 
 	global dbf, dbf_list, filter_size, covid
 
+	# make new qbf
 	qbf = BloomFilter(filter_size)
 
 	start_time = time.time()
-	dbf_timer = 600		# 10 minutes
-	qbf_timer = 3600  	# 60 minutes
+	# 10 minutes - dbf lifetime
+	dbf_timer = 600
+	# 60 minutes - qbf lifetime
+	qbf_timer = 3600 
 	curr_timer = time.time() - start_time
 
 	while not covid:
+		
+		# make new dbf every 10 minutes
 		if curr_timer > dbf_timer:
 			# remove oldest DBF
 			if len(dbf_list) == 6:
@@ -169,32 +189,40 @@ def udp_sender():
 
 			dbf_list.append(deepcopy(dbf))	
 			dbf.restart()
-			dbf_timer += 600
 
 			print()
 			print(f"[TASK 7B] Creating new DBF...")
 			print()
+			
+			dbf_timer += 600
 
+		# make new qbf every 60 minutes
 		if curr_timer > qbf_timer:
 			# print debug messages
 			print()
 			print("All available DBFs:")
+			
 			for i, bf in enumerate(dbf_list):
 				print(f"DBF {i+1}: {bf.get_indices()}")
-			print()
 			qbf.merge(dbf_list)
+			
+			print()
 			print(f"[TASK 8] Creating QBF: {qbf.get_indices()}")
 			print("[TASK 9A] Sending QBF to server, waiting for result...")
 			print()
+			
 			resp = send_qbf(qbf.bit_array)
+			
 			print(f"[TASK 9B] Query result: {resp['result']}. {resp['message']}")
 			print()
+			      
 			qbf_timer += 3600
 
 		# update timer
 		curr_timer = time.time() - start_time
 
 def monitor_input():
+			      
 	global dbf, dbf_list, filter_size, covid
 
 	# wait till the first dbf has generated
