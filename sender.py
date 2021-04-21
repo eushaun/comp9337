@@ -13,6 +13,8 @@ def send_qbf(qbf):
 	payload = {
 		'QBF': data
 	}
+
+	# dump qbf json file
 	with open('qbf.json', 'w') as f:
 		json.dump(payload, f)
 
@@ -29,8 +31,11 @@ def send_cbf(cbf):
 	payload = {
 		'CBF': data
 	}
+
+	# dump cbf json file
 	with open('cbf.json', 'w') as f:
 		json.dump(payload, f)
+
 	resp = requests.post(url, json=payload, headers=headers)
 
 	return resp.json()
@@ -38,14 +43,10 @@ def send_cbf(cbf):
 # main function
 if __name__ == "__main__":
 
-	# asd = "10" * 400000
-	# resp = send_qbf(asd)
-	# print(len(asd))
-	# print(resp)
-
-	bloomf1 = BloomFilter(100000)
+	bloomf1 = BloomFilter(800000)
 	word_present = [67488643248729147932]
 	for item in word_present:
 		bloomf1.add(item)
 		
-	resp = send_qbf(bloomf1.bit_array)
+	resp = send_cbf(bloomf1.bit_array)
+	print(resp)

@@ -17,10 +17,12 @@ from copy import deepcopy
 port = 40000
 priv_key = 0
 broadcast_hash = ""
-filter_size = 100000 * 8
+filter_size = 800000
 dbf = BloomFilter(filter_size)
 dbf_list = []
 covid = 0
+old_hash = 0
+
 
 print(f"[STARTING] Program is starting on port {port}.")
 
@@ -29,7 +31,7 @@ print(f"[STARTING] Program is starting on port {port}.")
 # thread to broadcast shares
 def udp_broadcaster():
 
-	global port, broadcast_hash, priv_key
+	global port, broadcast_hash, priv_key, old_hash
 
 	# create socket
 	broadcast_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
@@ -47,8 +49,8 @@ def udp_broadcaster():
 
 	# timer
 	start_time = time.time()
-	broadcast_timer = 5		# 10 seconds
-	id_timer = 30			# 1 minute
+	broadcast_timer = 10		# 10 seconds
+	id_timer = 60				# 1 minute
 	curr_timer = time.time() - start_time
 
 	while True:
@@ -59,7 +61,7 @@ def udp_broadcaster():
 			send_str = str(broadcast_id_recv_shares[0][0]) + "|" + hexlify(broadcast_id_recv_shares[0][1]).decode() + "|" + broadcast_hash
 			broadcast_socket.sendto(send_str.encode('utf-8'), ('192.168.4.255', port))
 			broadcast_id_recv_shares.pop(0)
-			broadcast_timer += 5
+			broadcast_timer += 10
 
 		# create new id every minute
 		elif curr_timer > id_timer:
@@ -68,13 +70,14 @@ def udp_broadcaster():
 			broadcast_id_recv_shares = Shamir.split(3, 6, broadcast_id)
 			
 			# hash of ephid
+			old_hash = broadcast_hash
 			broadcast_hash = sha256(broadcast_id).hexdigest()
 
 			# print recv_shares and id
 			print_id(broadcast_id, broadcast_id_recv_shares)
 
 			# set timer
-			id_timer += 30
+			id_timer += 60
 
 		# update timer
 		curr_timer = time.time() - start_time
@@ -82,7 +85,7 @@ def udp_broadcaster():
 # thread to receive shares
 def udp_receiver():
 
-	global port, broadcast_hash, priv_key, dbf
+	global port, broadcast_hash, priv_key, dbf, old_hash
 	
 	new_contact_list = {}
 
@@ -102,7 +105,7 @@ def udp_receiver():
 		recv_index, recv_share, recv_hash = recv_msg.decode("utf-8").split("|")
 
 		# skip if receive own message
-		if recv_hash == broadcast_hash:
+		if recv_hash == broadcast_hash or recv_hash == old_hash:
 			continue
 		else:
 			# recv_index
@@ -125,6 +128,7 @@ def udp_receiver():
 			# Check if the hash contains 3 entries
 			if num_recv_shares == 3:
 				sec = Shamir.combine(new_contact_list[recv_hash])
+				print()
 				print(f"[TASK 4A] Reconstructing EphID: {hexlify(sec)}")
 				print("[TASK 4B] Verifying integrity of EphID...")
 				new_hash = sha256(sec).hexdigest()
@@ -138,7 +142,9 @@ def udp_receiver():
 					print(f"[TASK 5A/5B] EncID is: {enc_id}")
 					print("[TASK 6] Adding EncID to DBF and deleting EncID...")
 					dbf.add(str(enc_id))
+					print()
 					print(f"[TASK 7A] Current state of DBF: {dbf.get_indices()}")
+					print()
 				else:
 					print("Error: Hash not verified.")
 					print()
@@ -151,8 +157,8 @@ def udp_sender():
 	qbf = BloomFilter(filter_size)
 
 	start_time = time.time()
-	dbf_timer = 300		# 10 minutes
-	qbf_timer = 1800  	# 60 minutes
+	dbf_timer = 600		# 10 minutes
+	qbf_timer = 3600  	# 60 minutes
 	curr_timer = time.time() - start_time
 
 	while not covid:
@@ -163,7 +169,7 @@ def udp_sender():
 
 			dbf_list.append(deepcopy(dbf))	
 			dbf.restart()
-			dbf_timer += 300
+			dbf_timer += 600
 
 			print()
 			print(f"[TASK 7B] Creating new DBF...")
@@ -183,7 +189,7 @@ def udp_sender():
 			resp = send_qbf(qbf.bit_array)
 			print(f"[TASK 9B] Query result: {resp['result']}. {resp['message']}")
 			print()
-			qbf_timer += 1800
+			qbf_timer += 3600
 
 		# update timer
 		curr_timer = time.time() - start_time
@@ -192,7 +198,7 @@ def monitor_input():
 	global dbf, dbf_list, filter_size, covid
 
 	# wait till the first dbf has generated
-	# time.sleep(300)		# follow dbf_timer
+	time.sleep(600)		# follow dbf_timer
 
 	print("##############################################################")
 	print("#                                                            #")
