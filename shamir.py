@@ -10,7 +10,7 @@ def reconstruct_secret(shares):
     return Shamir.combine(shares)
 
 '''
-OLD METHODS - ONLY WORKS WITH INTEGER
+OLD CUSTOM METHOD - ONLY WORKS WITH INTEGER
 
 FIELD_SIZE = 100000
 
