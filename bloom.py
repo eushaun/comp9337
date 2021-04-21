@@ -5,12 +5,11 @@ import mmh3
  
 class BloomFilter(object):
 
-    # constructor
     def __init__(self, filter_size):
  
         self.filter_size = filter_size
 
-        # Bit array of given size
+        # bit array
         self.bit_array = bitarray(self.filter_size)
  
         # initialize all bits as 0
@@ -33,6 +32,7 @@ class BloomFilter(object):
             index = mmh3.hash(str(key), i) % self.filter_size
             yield index
 
+    # merge a list of bloom filters into a single filter
     def merge(self, filters_list):
         self.bit_array.setall(0)
         for dbf in filters_list:
@@ -40,11 +40,6 @@ class BloomFilter(object):
 
     def restart(self):
         self.bit_array.setall(0)
-
-    def get_indices(self):
-        iter = re.finditer('1', str(self.bit_array))
-        indices = [m.start(0) for m in iter]
-        return indices
 
 # main function
 if __name__ == "__main__":
@@ -63,11 +58,10 @@ if __name__ == "__main__":
     for item in word_present:
         bloomf1.add(item)
 
-    # for item in word_absent:
-    #     bloomf2.add(item)
+    for item in word_absent:
+        bloomf2.add(item)
 
     print(bloomf1.bit_array)
-    print(type(bloomf1.bit_array))
-    # print(str(bloomf2))
+    print(str(bloomf2))
 
-    # bloomf3.merge([bloomf1, bloomf2])
+    #bloomf3.merge([bloomf1, bloomf2])
